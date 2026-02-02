@@ -1,0 +1,36 @@
+% Auto-generated tables for Task 3 (do not edit by hand)
+% Recommended: \usepackage{booktabs}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{llllllllll}
+\toprule
+Target & Best_Lambda & Best_TopK_Partner & Best_TopK_Industry & Best_TopK_HomeState & Best_TopK_HomeCountry & Best_CV_R2_mean & Best_CV_RMSE_mean & NumSamples & NumFeatures \\
+\midrule
+Performance_WeeksSurvived & 20 & 20 & 20 & 20 & 10 & 0.1805 & 0.9018 & 421 & 72 \\
+Judges_AvgJudgeTotal & 5 & 40 & 20 & 10 & 5 & 0.2471 & 0.8639 & 421 & 77 \\
+Fans_AvgFanShare & 5 & 20 & 12 & 10 & 20 & 0.112 & 0.9419 & 390 & 64 \\
+\bottomrule
+\end{tabular}
+\caption{Ridge hyperparameter selection via cross-validation (best $\lambda$ and top-K truncation per target).}
+\label{tab:task3_best_params}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Feature & Performance(WeeksSurvived) & Judges(AvgJudgeTotal) & Fans(AvgFanShare) \\
+\midrule
+Age & 0.3493 & 0.378 & 0.2565 \\
+Partner & 0.6109 & 1.7595 & 1.0965 \\
+Industry & 0.4885 & 1.0059 & 1.0371 \\
+Homestate & 0.523 & 0.7509 & 0.6867 \\
+Homecountry & 0.2053 & 0.2863 & 0.7121 \\
+\bottomrule
+\end{tabular}
+\caption{Estimated feature impacts (absolute standardized coefficients) across three targets.}
+\label{tab:task3_beta_impact}
+\end{table}

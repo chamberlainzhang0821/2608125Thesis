@@ -1,0 +1,42 @@
+\section{Model Evaluation}
+
+
+\subsection{Advantages}
+\begin{itemize}
+    \item \textbf{Reproducible pipeline.}
+    A modular workflow (Task 1 inference $\rightarrow$ Task 2 replay $\rightarrow$ Task 3 explanation $\rightarrow$ Task 4 design) with all key outputs exported for auditing.
+
+    \item \textbf{Internal validity via replay.}
+    Using posterior means $\boldsymbol{\mu}_{s,w}$, the historical-rule replay matches eliminations in $229$ weeks (match rate $1.00$), verifying correct rule implementation.
+
+    \item \textbf{Uncertainty + identifiability diagnostics.}
+    Alongside $\mu_{s,w,i}$ we report $\sigma_{s,w,i}$ and week-level signals (\texttt{AvgVoteUncertainty}, acceptance rate $\rho_{s,w}$) to flag hard-to-identify weeks.
+
+    \item \textbf{Stable inference.}
+    The three-phase ABC rarely needs relaxation: $228/231$ weeks succeed with exact matching, $3$ use bottom-2 relaxation, none require soft resampling.
+
+    \item \textbf{Actionable counterfactuals and interpretable explanations.}
+    Holding fan votes fixed enables clean rule comparisons (flip events, survival shifts $\Delta$). Ridge regressions provide interpretable, regularized feature effects.
+
+    \item \textbf{Transparent rule design with robustness checks.}
+    \texttt{FairVote} turns fairness into a tunable trade-off over $(k,\tau)$ and is supported by grid sweeps, bootstrap CIs, and LOSO stability.
+\end{itemize}
+
+\subsection{Limitations}
+\begin{itemize}
+    \item \textbf{Non-identifiability of fan votes.}
+    Eliminations are a coarse signal; many vote-share vectors can yield the same eliminated couple, so replay confirms rule-consistency, not uniqueness.
+
+    \item \textbf{Prior and ABC design sensitivity.}
+    The posterior depends on $\alpha$ and on relaxation choices (e.g., bottom-2 membership), especially in low-acceptance weeks.
+
+    \item \textbf{Rule simplification risk.}
+    The era-based rules approximate broadcast logic; unmodeled special weeks (e.g., double eliminations/withdrawals) may affect comparability.
+
+    \item \textbf{Explanations are correlational.}
+    Ridge coefficients capture associations; omitted factors (themes, injuries, narrative effects) can confound interpretation.
+
+    \item \textbf{FairVote trade-offs are explicit, not universally ``fair''.}
+    At $(2.0,0.2)$, $\mathbb{P}(\Delta>0)=0.645$, so fan protection is not guaranteed; different objective weights would select different $(k,\tau)$.
+\end{itemize}
+

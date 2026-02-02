@@ -1,0 +1,46 @@
+% Auto-generated Task3 sensitivity tables (do not edit by hand)
+% Recommended: \usepackage{booktabs}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lllll}
+\toprule
+Target & CV_R2_mean & CV_R2_std & CV_RMSE_mean & CV_RMSE_std \\
+\midrule
+Fans_AvgFanShare & 0.078 & 0.03 & 0.952 & 0.01 \\
+Judges_AvgJudgeTotal & 0.249 & 0.015 & 0.859 & 0.005 \\
+Performance_WeeksSurvived & 0.165 & 0.021 & 0.908 & 0.009 \\
+\bottomrule
+\end{tabular}
+\caption{Seed stability summary of cross-validated performance.}
+\label{tab:t3_seed_stability}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lllll}
+\toprule
+Target & BetaGroup & Mean & CI_low & CI_high \\
+\midrule
+Fans_AvgFanShare & beta_age & 0.256 & 0.256 & 0.256 \\
+Fans_AvgFanShare & beta_partner & 1.097 & 1.097 & 1.097 \\
+Fans_AvgFanShare & beta_industry & 1.037 & 1.037 & 1.037 \\
+Fans_AvgFanShare & beta_homestate & 0.687 & 0.687 & 0.687 \\
+Fans_AvgFanShare & beta_homecountry & 0.712 & 0.712 & 0.712 \\
+Judges_AvgJudgeTotal & beta_age & 0.378 & 0.378 & 0.378 \\
+Judges_AvgJudgeTotal & beta_partner & 1.76 & 1.76 & 1.76 \\
+Judges_AvgJudgeTotal & beta_industry & 1.006 & 1.006 & 1.006 \\
+Judges_AvgJudgeTotal & beta_homestate & 0.751 & 0.751 & 0.751 \\
+Judges_AvgJudgeTotal & beta_homecountry & 0.286 & 0.286 & 0.286 \\
+Performance_WeeksSurvived & beta_age & 0.349 & 0.349 & 0.349 \\
+Performance_WeeksSurvived & beta_partner & 0.611 & 0.611 & 0.611 \\
+Performance_WeeksSurvived & beta_industry & 0.489 & 0.489 & 0.489 \\
+Performance_WeeksSurvived & beta_homestate & 0.523 & 0.523 & 0.523 \\
+Performance_WeeksSurvived & beta_homecountry & 0.205 & 0.205 & 0.205 \\
+\bottomrule
+\end{tabular}
+\caption{Bootstrap 95\% confidence intervals for mean group effects.}
+\label{tab:t3_beta_ci}
+\end{table}

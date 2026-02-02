@@ -1,0 +1,97 @@
+\section{Notations}
+\setlength{\parindent}{2em} % 设置缩进为2个字符宽度
+
+The core symbols and their definitions used in this study are summarized in Table~\ref{table:notations}, providing an overview of the key parameters and their related meanings.
+
+% NOTE: requires \usepackage{longtable} in the preamble.
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt} % tighter column padding
+\renewcommand{\arraystretch}{0.75} % tighter row spacing
+\setlength\LTleft{0pt}
+\setlength\LTright{0pt}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+
+\begin{longtable}{>{\centering\arraybackslash}p{0.28\linewidth} >{\raggedright\arraybackslash}p{0.68\linewidth}}
+\caption{Notations used in this model}\label{table:notations}\\
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+\endfirsthead
+
+\multicolumn{2}{c}{\tablename\ \thetable\ (continued)}\\
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{2}{r}{\emph{Continued on next page}}\\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+$s$ & Season index (e.g., $s=1,2,\dots$) \\
+
+$w$ & Week index within a season ($w=1,2,\dots,W$) \\
+
+$W$ & Maximum week number detected from the input columns \\
+
+$i$ & Index of an active couple in week $w$ (among $n_{s,w}$ active couples) \\
+
+$n_{s,w}$ & Number of active couples with valid judge scores in season $s$, week $w$ \\
+
+$\text{CoupleID}_{s,w,i}$ & Identifier of couple $i$ in season $s$, week $w$ (Celebrity\_Partner) \\
+
+$J_{s,w,i}$ & Total judge score of couple $i$ in week $w$ (sum of available positive judge scores) \\
+
+$\mathbf{J}_{s,w}$ & Vector of judge totals for all active couples in $(s,w)$: $\mathbf{J}_{s,w}=(J_{s,w,1},\dots,J_{s,w,n_{s,w}})$ \\
+
+$e_{s,w}$ & Index of the \emph{actual} eliminated couple in week $w$ (ground truth from the dataset) \\
+
+$\mathbf{v}_{s,w}$ & Fan vote share vector in $(s,w)$: $\mathbf{v}_{s,w}=(v_{s,w,1},\dots,v_{s,w,n_{s,w}})$, $v_{s,w,i}\ge 0$, $\sum_i v_{s,w,i}=1$ \\
+
+$\alpha$ & Dirichlet prior concentration parameter for fan shares (code: \texttt{DIRICHLET\_ALPHA}) \\
+
+$\text{Dirichlet}(\alpha\mathbf{1})$ & Prior distribution used to draw candidate fan share vectors $\mathbf{v}_{s,w}$ \\
+
+$\mathcal{R}$ & Voting rule / method: $\mathcal{R}\in\{\text{Rank},\text{Percent},\text{Bottom2+JudgeSave}\}$ \\
+
+$\mathcal{R}_{\text{like}}(s)$ & Likelihood rule used for inference in season $s$ (piecewise by era: Rank / Percent / Bottom2+JudgeSave) \\
+
+$\widehat{e}_{s,w}(\mathcal{R})$ & Predicted eliminated couple under rule $\mathcal{R}$ given $(\mathbf{J}_{s,w},\mathbf{v}_{s,w})$ \\
+
+$\mathrm{rank}(\cdot)$ & Descending rank operator (best value has rank 1; ties receive averaged ranks) \\
+
+
+$N_{\text{draw}}$ & Number of prior draws used in the accepted phase (reported as \texttt{DrawsUsed}) \\
+
+$N_{\text{acc}}$ & Number of accepted (or resampled) posterior samples (code target: \texttt{MIN\_ACCEPT}; reported as \texttt{AcceptedSamples}) \\
+
+$N_{\min}$ & Minimum accepted samples required for stable posterior summary (code: \texttt{MIN\_ACCEPT}) \\
+
+$N_{\text{early}}$ & Early-stop accepted threshold (code: \texttt{EARLY\_STOP\_ACCEPT}) \\
+
+$\rho_{s,w}$ & Acceptance rate in the used phase: $\rho_{s,w}=N_{\text{acc}}/N_{\text{draw}}$ (reported as \texttt{AcceptanceRate}) \\
+
+$\ell_{s,w}$ & Fallback level of inference: $\ell_{s,w}\in\{0,1,2\}$ (exact / bottom-2 membership / soft resampling) \\
+
+
+$\mu_{s,w,i}$ & Posterior mean of fan share for couple $i$ in $(s,w)$ (reported as \texttt{VoteMean}) \\
+
+$\sigma_{s,w,i}$ & Posterior standard deviation of fan share for couple $i$ in $(s,w)$ (reported as \texttt{VoteStd}) \\
+
+$\overline{\sigma}_{s,w}$ & Average posterior uncertainty in week $(s,w)$: mean of $\{\sigma_{s,w,i}\}_{i=1}^{n_{s,w}}$ (reported as \texttt{AvgVoteUncertainty}) \\
+
+$\mathbb{I}[\cdot]$ & Indicator function (1 if condition true, else 0) used in match/flip calculations \\
+
+$\text{Flip}(\mathcal{R}_a,\mathcal{R}_b)$ & Whether two methods disagree on predicted elimination in a week (e.g., Rank vs Percent) \\
+
+$E_{s}(\mathcal{R},\text{CoupleID})$ & Predicted elimination week of a couple under method $\mathcal{R}$ in season $s$ (default $W+1$ if never eliminated) \\
+
+$\Delta E$ & Benefit / harm measure as elimination-week difference between methods (e.g., $E_s(\text{Percent})-E_s(\text{Rank})$) \\
+
+\end{longtable}
+\end{center}

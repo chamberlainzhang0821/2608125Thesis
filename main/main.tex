@@ -1,0 +1,114 @@
+%% This is file 'mcmthesis-demo.tex',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% mcmthesis.dtx  (with options: 'demo')
+%% 
+%% -----------------------------------
+%% This is a generated file.
+%% 
+%% Copyright (C) 2010 -- 2015 by latexstudio
+%%       2014 -- 2019 by Liam Huang
+%%       2019 -- present by latexstudio.net
+%% 
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3 or alater is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%% 
+%% The Current Maintainer of this work is latexstudio.net.
+%% 
+%% !Mode:: "TeX:UTF-8"
+%\documentclass{mcmthesis}
+\documentclass{mcmthesis}  % 当使用 CTeX 套装时请注释上一行使用该行的设置
+\mcmsetup{tstyle=\color{black}\bfseries,%修改题号，队号的颜色和加粗显示，黑色可以修改为 black
+        tcn = 2608125, problem = C, %修改队号，参赛题号
+        sheet = true, titleinsheet = true, keywordsinsheet = true,
+        titlepage = false, abstract = true}
+
+  %四款字体可以选择
+  %\usepackage{times}
+  %\usepackage{newtxtext}
+  %\usepackage{palatino}
+ \usepackage{txfonts}
+
+\usepackage{indentfirst}  %首行缩进，注释掉，首行就不再缩进。
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{lipsum}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{ragged2e} % for \RaggedRight in X columns
+
+\usepackage{tocloft} % control ToC font/spacing
+
+% --- Table of Contents (ToC) title centering + larger title font ---
+\renewcommand{\cfttoctitlefont}{\centering\LARGE\bfseries}
+\renewcommand{\cftaftertoctitle}{\par\vspace{0.4em}}
+
+% ToC entry fonts
+\renewcommand{\cftsecfont}{\small}
+\renewcommand{\cftsubsecfont}{\small}
+\renewcommand{\cftsubsubsecfont}{\small}
+\renewcommand{\cftsecpagefont}{\small}
+\renewcommand{\cftsubsecpagefont}{\small}
+\renewcommand{\cftsubsubsecpagefont}{\small}
+
+% tighter vertical spacing inside ToC
+\setlength{\cftbeforesecskip}{0.2em}
+\setlength{\cftbeforesubsecskip}{0.1em}
+\setlength{\cftbeforesubsubsecskip}{0.05em}
+\setlength{\cftparskip}{0pt}
+
+\pdfstringdefDisableCommands{%
+  \def\alpha{alpha}%
+  \def\bm#1{#1}%
+}
+
+
+
+
+\title{Reconstructing Hidden Fan Votes and Stress-Testing Voting Rules in Dancing with the Stars: A Stable-ABC Bayesian Pipeline and FairVote Backtest}
+\author{\small \href{https://www.latexstudio.net/}
+  {\includegraphics[width=7cm]{mcmthesis-logo}}}
+ 
+\date{\today}
+
+\makeatletter
+\providecommand{\keywordsname}{Keywords} % label shown before keywords
+\providecommand{\@keywords}{Bayesian inference, ABC, fan votes, voting rules, fairness} % default empty to avoid "Undefined control sequence" if \keywords{...} not set
+\makeatother
+\begin{document}
+\setlength{\headheight}{14pt}
+
+\input{sections/0.Abstract}
+\maketitle
+
+\begingroup
+\small
+\renewcommand{\baselinestretch}{0.95}\selectfont
+\tableofcontents
+\endgroup
+\newpage
+\input{sections/1.Introduction}
+
+\input{sections/2.Assumptions}
+\input{sections/3.Notations}
+\input{sections/4.Models}
+\input{sections/5.Sensitivity Analysis}
+\input{sections/6.Model Evaluation and Promotion}
+\input{sections/7.Memo: Model Overview and Key Takeaways}
+\input{sections/8.References}
+\input{sections/9.Appendices}
+\input{sections/10.AI}
+
+\end{document}

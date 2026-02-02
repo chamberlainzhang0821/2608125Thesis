@@ -1,0 +1,57 @@
+\newpage
+\section{Memo: Fair and Exciting Elimination Design: Rank vs Percent vs Judge Save}
+
+\noindent\textbf{To:} Producer, \emph{Dancing with the Stars} (DWTS) \\
+\textbf{From:} Team \#2608125 \\
+\textbf{Date:} 02/02/2026 \\
+\textbf{Subject:} Fair and Exciting Elimination Design: Rank vs Percent vs Judge Save
+
+\medskip
+\noindent\textbf{Purpose.}
+Judge scores are public while fan votes are hidden, so eliminations only partially reveal audience support.
+We built a data-driven framework to estimate weekly fan support with uncertainty, compare rule outcomes, explain key drivers, and test a tunable rule design.
+
+\medskip
+\noindent\textbf{Data.}
+We use season-week judge totals and keep weeks with a single confirmed elimination.
+Historical formats are grouped into three rule types: \texttt{Rank}, \texttt{Percent}, and \texttt{Bottom2+JudgeSave}.
+
+\medskip
+\noindent\textbf{Finding 1: Fan support is inferable but not uniquely recoverable.}
+Since only the eliminated couple is observed, many vote patterns can produce the same result.
+Our method estimates fan-support levels and reports uncertainty to flag hard-to-identify weeks.
+
+\medskip
+\noindent\textbf{Evidence (stability).}
+Replaying eliminations using inferred fan support matches history in \textbf{229/229} elimination weeks.
+Across \textbf{231} usable weeks, almost all succeed under strict matching, showing the pipeline is stable for analysis.
+
+\medskip
+\noindent\textbf{Finding 2: Rule choice mainly matters in close weeks.}
+Holding fan support fixed, rule replay shows disagreements between:
+\texttt{Rank} (order-based),
+\texttt{Percent} (magnitude-based),
+and\\ \texttt{Bottom2+JudgeSave} (judge override, higher shock potential).
+
+\medskip
+\noindent\textbf{Recommendation.}
+\textbf{\texttt{Percent}} is the best default for fairness and clarity.
+\textbf{\texttt{Bottom2+JudgeSave}} increases drama and judge control, but can override fan preference.
+
+\medskip
+\noindent\textbf{Finding 3: What drives outcomes.}
+Regression results suggest the \textbf{professional partner} is the strongest driver of judge scores and remains influential for fan support.
+
+\medskip
+\noindent\textbf{Finding 4: FairVote provides a tunable compromise.}
+\texttt{FairVote} can trade off fairness vs excitement using adjustable parameters.
+At our selected setting, it triggers ``close-call'' handling in about one quarter of elimination weeks.
+
+\medskip
+\noindent\textbf{Limitations.}
+Fan support is inferred from eliminations only, and results depend on correct handling of special-week rule exceptions.
+
+\medskip
+\noindent\textbf{Bottom line.}
+Use \texttt{Percent} for fairness and transparency; use Judge Save for producer-driven drama.
+\texttt{FairVote} offers a controllable middle option.

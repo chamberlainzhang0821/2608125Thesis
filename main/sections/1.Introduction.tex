@@ -1,0 +1,52 @@
+\section{Introduction}
+\subsection{Background}
+Televised dance competitions combine performance and popularity under a weekly elimination system.
+lemph{Dancing with the Stars} (DWTS) is a representative example, where outcomes depend on judges' scores and fan votes.
+Judges' scores are observed and standardized, but fan vote totals are not disclosed and remain proprietary.
+Thus, the elimination process is only partially observable: eliminations are known, while the underlying vote distribution is hidden.
+This motivates mathematical modeling.
+By reconstructing plausible vote shares consistent with observed outcomes, we can evaluate how different combination rules affect fairness, predictability, and controversy.
+We also examine whether contestant attributes and professional partners influence success beyond
+dancing performance.
+
+\subsection{Literature Review}
+Voting-based competitions have been examined through social choice theory and fairness analysis, especially in how rankings or normalized scores are aggregated into final outcomes. 
+When important variables are not directly observed, Bayesian inference and simulation-based methods such as Approximate Bayesian Computation (ABC) provide practical tools to reconstruct latent preferences with uncertainty.
+
+\subsection{The Description of the Problem}
+We study DWTS eliminations across multiple seasons, where weekly outcomes depend on judges' scores and undisclosed fan votes. 
+The dataset provides judge scores, contestant attributes, season/week identifiers, and the eliminated couple each week.
+
+Our objectives are:
+{\renewcommand{\baselinestretch}{1.0}\selectfont
+\begin{enumerate}
+    \item \textbf{Fan Vote Inference:} Estimate weekly fan vote shares consistent with observed eliminations and quantify uncertainty.
+    \item \textbf{Voting Rule Comparison:} Compare rank-based and percentage-based systems, and test a bottom-two judge decision mechanism.
+    \item \textbf{Feature Impact Analysis:} Evaluate how professional partners and celebrity characteristics relate to scores, popularity, and survival.
+    \item \textbf{Rule Design:} Propose and justify a fairer voting procedure supported by quantitative evidence.
+\end{enumerate}
+}
+
+\subsection{Our Work}
+We propose a unified pipeline combining Bayesian reconstruction, rule-based simulation, and interpretable predictive modeling.
+
+\textbf{Task 1: Fan vote reconstruction.}
+We infer latent fan vote shares for each active couple using a Dirichlet prior and an ABC-style procedure that generates plausible vote vectors consistent with observed eliminations.
+
+\textbf{Task 2: Rule comparison.}
+Using inferred fan preferences, we replay historical weeks under multiple aggregation rules and summarize agreement rates, flip cases, and disagreement patterns.
+
+\textbf{Task 3: Feature impact.}
+We use regularized regression to separate performance-driven effects from popularity-driven effects and identify influential contestant and partner attributes.
+
+\textbf{Task 4: New voting system proposal.}
+Based on empirical findings, we propose and backtest an alternative voting scheme that aims to improve fairness while preserving competition excitement.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.55\textwidth]{../figures/pipeline.png}
+    \caption{Modeling Pipeline Overview} 
+    \label{fig:modeling_pipeline}
+\end{figure}
+
+

@@ -1,0 +1,14 @@
+\begin{abstract}
+Televised dance competitions combine observed judges' scores with undisclosed fan votes, making the elimination process only partially observable. Using multi-season data from \emph{Dancing with the Stars} (DWTS), we develop a unified modeling pipeline to reconstruct latent fan vote shares, quantify uncertainty, compare alternative vote-combination rules, explain performance/popularity drivers, and propose a tunable new voting mechanism.
+
+For Task 1, we infer week-level fan vote shares on the probability simplex via a symmetric Dirichlet prior and a Stable-ABC (Approximate Bayesian Computation) procedure that enforces the season-specific historical elimination rule. Posterior summaries yield vote-share means and uncertainties, with week-level diagnostics (acceptance rate and average posterior standard deviation) indicating inference difficulty. A posterior predictive check achieves perfect agreement with observed eliminations across 229 elimination weeks when posterior means are replayed through the historical rule.
+
+For Task 2, we perform counterfactual replays by holding inferred fan shares fixed while switching the aggregation rule among \texttt{Rank}, \texttt{Percent}, and \texttt{Bottom2+JudgeSave}. We quantify consistency, flip events, and contestant-level survival-week shifts, showing that \texttt{Percent} provides the most stable and interpretable magnitude-based aggregation, while judge-save mechanisms can induce qualitatively larger outcome shifts even when \texttt{Rank} and \texttt{Percent} agree.
+
+For Task 3, we fit ridge-regularized linear models with cross-validation to explain three targets: \texttt{WeeksSurvived}, \texttt{AvgJudgeTotal}, and \texttt{AvgFanShare}. Grouped coefficient magnitudes highlight that the professional partner is the strongest signal for judge outcomes and remains influential for fan support, with moderate contributions from industry and geographic attributes; sensitivity analyses confirm robustness to regularization and resampling.
+
+For Task 4, we propose \texttt{FairVote}, a two-parameter rule that explicitly trades off historical consistency, ``close-call'' excitement rate, and fan-protection behavior. A grid backtest with bootstrap confidence intervals and leave-one-season-out checks identifies an operating point that yields moderate consistency while maintaining a controlled intervention rate, enabling stakeholders to choose policy priorities transparently. Overall, our framework provides an auditable approach for reconstructing hidden preferences, diagnosing rule sensitivity, and supporting evidence-based voting-rule design.
+
+
+
+\end{abstract}

@@ -1,0 +1,30 @@
+\section{Assumptions}
+
+\textbf{Assumption 1: (Data correctness \& structure)}
+The Excel file \texttt{2026\_MCM\_Problem\_C\_Data.csv} is treated as the single source of truth. We assume judge score columns (when present) are recorded correctly, and the \texttt{results} field correctly indicates the eliminated week in the format ``Eliminated Week \{w\}''.
+
+\textbf{Assumption 2: (Active roster definition)}
+A couple is considered \emph{active} in a given week if they have not been eliminated before that week. Weeks where the eliminated couple cannot be uniquely identified from the data are excluded from inference and downstream comparisons.
+
+\textbf{Assumption 3: (Judge score aggregation)}
+A couple's weekly judge score is computed by aggregating all available judge scores for that week. Missing entries are ignored, and invalid values (e.g., non-positive placeholders) are treated as absent rather than informative.
+
+\textbf{Assumption 4: (Fan votes are unobserved)}
+Fan votes are not directly observed in the dataset. We treat fan support as a latent (hidden) quantity that influences eliminations together with judges' scores.
+
+\textbf{Assumption 5: (Season-dependent rule regime)}
+We assume the show follows different elimination rule regimes across seasons: an early-season ranking-based regime, a mid-season percentage-based regime, and a later-season ``bottom-two with judges' save'' regime. The regime is assumed constant within each season.
+
+\textbf{Assumption 6: (Rule implementation is a faithful proxy)}
+When applying elimination rules, we use an operational implementation that matches the intended mechanics:
+{\renewcommand{\baselinestretch}{1.0}\selectfont
+\begin{itemize}
+  \item \texttt{Percent}: combine normalized judges' contribution with fan support and eliminate the lowest combined score.
+  \item \texttt{Rank}: combine judges and fan support via rank-based aggregation and eliminate the worst combined rank.
+  \item \texttt{Bottom2+JudgeSave}: identify a bottom-two set by combined risk and assume judges save the couple with the higher judges' score.
+\end{itemize}
+}
+We assume this implementation is sufficiently faithful for modeling and comparison purposes, including how ties are handled.
+
+\textbf{Assumption 7: (Week-wise independence)}
+Fan support is inferred independently week by week, conditional on that week's active roster and judges' scores. We do not explicitly model temporal dynamics such as popularity momentum across weeks.

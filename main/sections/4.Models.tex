@@ -1,0 +1,774 @@
+\section{Models}
+
+% ==========================================================
+% Task 1
+% ==========================================================
+\subsection{Modeling and Solving of Task 1: Bayesian Fan-Vote Inference}
+\subsubsection{Problem Analysis}
+    For each season $s$ and week $w$, suppose there are $n_{s,w}$ active couples.
+    Let $J_{s,w,i}$ denote the (observed) total judge score for couple $i$ in week $(s,w)$,
+    and let $\mathbf{v}_{s,w}=(v_{s,w,1},\dots,v_{s,w,n_{s,w}})$ denote the (unobserved) fan vote share,
+    where $\mathbf{v}_{s,w}$ lies on the probability simplex:
+    \[
+    v_{s,w,i} \ge 0,\quad \sum_{i=1}^{n_{s,w}} v_{s,w,i} = 1.
+    \]
+    The data provide the \emph{actual eliminated couple} $e_{s,w}$ each week (when elimination occurs),
+    but do not provide the fan vote share $\mathbf{v}_{s,w}$.
+    The key difficulty is that the show’s elimination is a deterministic outcome of a \emph{voting rule}
+    combining judge scores and fan votes; hence we infer $\mathbf{v}_{s,w}$ from the observed elimination event.
+
+\subsubsection{Model Preparation}
+    \textbf{Voting-rule eras.} Historical rules are season-dependent and implemented as a piecewise function:
+    \[
+    \mathcal{R}_{\text{like}}(s)=
+    \begin{cases}
+    \texttt{Rank}, & s\le 2,\\
+    \texttt{Percent}, & 3\le s \le 27,\\
+    \texttt{Bottom2+JudgeSave}, & s\ge 28.
+    \end{cases}
+    \]
+    For each week we compute judge totals $J_{s,w,i}$ from the available judge columns
+    (\texttt{week\{w\}\_judge\{j\}\_score}, summing positive scores), and collect them as
+    $\mathbf{J}_{s,w}=(J_{s,w,1},\dots,J_{s,w,n_{s,w}})$.
+
+    \textbf{Notation for rule outcome.} For each rule $\mathcal{R}\in\mathcal{R}$, define a deterministic map
+    \[
+    g_{\mathcal{R}}\!\left(\mathbf{J}_{s,w},\mathbf{v}_{s,w}\right)\in\{1,\dots,n_{s,w}\}
+    \]
+    that returns the eliminated index under rule $\mathcal{R}$ with judge vector $\mathbf{J}_{s,w}$ and fan shares $\mathbf{v}_{s,w}$.
+    This encapsulates the three implemented mechanisms:
+    {\renewcommand{\baselinestretch}{1.0}\selectfont
+    \begin{itemize}
+        \item \texttt{Percent}: normalize judges $\tilde{J}_{s,w,i}=J_{s,w,i}/\sum_{j=1}^{n_{s,w}} J_{s,w,j}$ and eliminate
+              $\arg\min_i(\tilde{J}_{s,w,i}+v_{s,w,i})$.
+        \item \texttt{Rank}: rank judges and fans separately in descending order (best rank $=1$),
+              sum ranks, and eliminate the worst (largest rank-sum).
+        \item \texttt{Bottom2+JudgeSave}: compute bottom-2 by rank-sum, then eliminate the one with lower judge score among that bottom-2.
+    \end{itemize}
+    }
+
+    \textbf{Bayesian prior.} We impose a symmetric Dirichlet prior on fan shares \cite{gelman2013}:
+    \[
+    \mathbf{v}_{s,w}\sim \mathrm{Dirichlet}(\alpha\mathbf{1}), \quad \alpha>0,
+    \]
+    where small $\alpha$ encourages sparse/peaked vote distributions, matching the fact that a few couples often dominate votes.
+
+\subsubsection{Model Construction}
+    \textbf{ABC likelihood and the intractability.} The observation is the eliminated index
+    $e_{s,w}=g_{\mathcal{R}_{\text{like}}(s)}(\mathbf{J}_{s,w},\mathbf{v}_{s,w})$.
+    A natural (but degenerate) likelihood is an indicator:
+    \[
+    \mathcal{L}(\mathbf{v}_{s,w}\mid e_{s,w},\mathbf{J}_{s,w})
+    =\mathbb{I}\!\left[g_{\mathcal{R}_{\text{like}}(s)}(\mathbf{J}_{s,w},\mathbf{v}_{s,w})=e_{s,w}\right],
+    \]
+    which makes the exact posterior hard to compute analytically.
+    We therefore use Approximate Bayesian Computation (ABC) with rejection / relaxed acceptance \cite{beaumont2002,sisson2018}.
+
+    \textbf{Stable three-phase ABC inference.} For each season-week, we generate samples from the prior and accept them based on how well
+    the simulated elimination matches the observed elimination. The algorithm is stabilized by
+    (i) a minimum accepted sample target and (ii) progressively relaxed acceptance:
+
+    \begin{enumerate}
+        \item \textbf{Phase 0 (Exact ABC).}
+              Draw $\mathbf{v}_{s,w}^{(m)}\sim \mathrm{Dirichlet}(\alpha\mathbf{1})$ and accept if
+              $g_{\mathcal{R}_{\text{like}}(s)}(\mathbf{J}_{s,w},\mathbf{v}_{s,w}^{(m)})=e_{s,w}$.
+              Denote the number of draws actually used by $N_{\text{draw}}$ and the number of accepted
+              (or resampled) posterior samples by $N_{\text{acc}}$.
+              Stop early once at least $N_{\text{early}}$ samples are accepted, and require at least
+              $N_{\min}$ accepted samples to form posterior summaries, with a hard draw cap $D_{\max}$.
+
+        \item \textbf{Phase 1 (Bottom-2 membership relaxation).}
+              If Phase 0 yields fewer than $N_{\min}$ accepts, we relax the event:
+              accept if the actual eliminated index belongs to the rule-defined bottom-2 risk set.
+              This keeps inference informative while avoiding collapse when exact matching is rare.
+
+        \item \textbf{Phase 2 (Soft importance resampling).}
+              If Phase 1 is still insufficient, we draw a large pool $\{\mathbf{v}_{s,w}^{(m)}\}_{m=1}^{M}$ and assign weights
+              \[
+              w_m \propto \exp\!\big(-T\cdot \mathrm{gap}(\mathbf{v}_{s,w}^{(m)})\big),
+              \]
+              where $\mathrm{gap}(\cdot)$ measures how far the sample is from producing the true elimination
+              (e.g., for \texttt{Percent}, the eliminated candidate’s combined score above the minimum;
+              for \texttt{Rank}-based rules, the eliminated candidate’s rank-sum below the maximum).
+              We then resample $N_{\min}$ posterior samples according to $\{w_m\}$.
+              This guarantees a stable posterior output for every usable season-week.
+    \end{enumerate}
+
+    \textbf{Posterior summaries.} Given accepted samples $\{\mathbf{v}_{s,w}^{(k)}\}_{k=1}^{K}$,
+    we report posterior mean and uncertainty (standard deviation) per couple:
+    \[
+    \mu_{s,w,i}=\frac{1}{K}\sum_{k=1}^{K} v_{s,w,i}^{(k)},
+    \qquad
+    \sigma_{s,w,i}=\sqrt{\frac{1}{K}\sum_{k=1}^{K}\left(v_{s,w,i}^{(k)}-\mu_{s,w,i}\right)^2 }.
+    \]
+
+\subsubsection{Model Solution}
+
+We run the above inference for every season-week where: (i) a unique eliminated couple exists,
+(ii) at least two active couples have valid judge totals, and (iii) the eliminated couple is among the active set.
+
+% 3D surface diagnostics (1x2)
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T1_4_uncertainty_surface_1to1.png}
+        \caption{3D surface: vote-share uncertainty (5th--95th percentile, clipped).}
+        \label{fig:task1_uncertainty_surface}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T1_2_acceptance_surface_1to1.png}
+        \caption{3D surface: average Phase-0 acceptance rate.}
+        \label{fig:task1_acceptance_surface}
+    \end{subfigure}
+    \caption{Task 1 diagnostic surfaces over the season--week grid.}
+    \label{fig:task1_diagnostic_surfaces}
+\end{figure}
+
+\textbf{Diagnostics: uncertainty and inference difficulty.}
+Because the observed data reveal only the \emph{eliminated couple} (a coarse, discrete outcome),
+the latent fan shares $\mathbf{v}_{s,w}$ are generally \emph{not identifiable}: many distinct vote-share vectors can
+produce the same elimination under the deterministic rule. Consequently, a perfect replay of eliminations does \emph{not}
+imply that the inferred fan shares are uniquely determined or ``exact''; it only implies \emph{consistency} with the rule.
+
+We therefore report two complementary diagnostics that quantify how informative each week is for inference:
+(i) the posterior vote-share uncertainty (via \texttt{AvgVoteUncertainty}), and
+(ii) the Phase-0 rejection-ABC acceptance rate $\rho_{s,w}$, which serves as a proxy for identifiability.
+Intuitively, low acceptance means the set $\{\mathbf{v}: g_{\mathcal{R}}(\mathbf{J},\mathbf{v})=e\}$ occupies a small
+region of the simplex (a ``thin'' feasible set), so the elimination provides weak and/or highly boundary-dependent information.
+We visualize both quantities as season--week heatmaps and as 3D surfaces (clipped to the 5th--95th percentile range for readability).
+Figures~\ref{fig:task1_uncertainty_heatmap} and~\ref{fig:task1_uncertainty_surface} report vote-share uncertainty,
+while Figures~\ref{fig:task1_acceptance_heatmap} and~\ref{fig:task1_acceptance_surface} report Phase-0 acceptance rates.
+
+% Heatmap diagnostics (1x2)
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T1_3_uncertainty_heatmap_jasa.png}
+        \caption{Week-level uncertainty heatmap (\texttt{AvgVoteUncertainty}).}
+        \label{fig:task1_uncertainty_heatmap}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T1_1_acceptance_heatmap.png}
+        \caption{Acceptance-rate heatmap (higher $\Rightarrow$ easier exact ABC matching).}
+        \label{fig:task1_acceptance_heatmap}
+    \end{subfigure}
+    \caption{Task 1 diagnostic heatmaps over the season--week grid.}
+    \label{fig:task1_diagnostic_heatmaps}
+\end{figure}
+
+\textbf{Posterior predictive consistency (rule consistency, not unique identification).}
+We verify that inferred fan shares reproduce observed eliminations by plugging the posterior mean
+$\boldsymbol{\mu}_{s,w}$ into the historical rule $\mathcal{R}_{\text{like}}(s)$:
+\[
+\widehat{e}_{s,w}(\mathcal{R}_{\text{like}})=g_{\mathcal{R}_{\text{like}}(s)}\!\left(\mathbf{J}_{s,w},\boldsymbol{\mu}_{s,w}\right).
+\]
+Across $229$ elimination weeks, the match rate is $1.00$, with era breakdown:
+\texttt{Rank} ($10/10$), \texttt{Percent} ($208/208$), and \texttt{Bottom2+JudgeSave} ($11/11$).
+We emphasize that this replay check establishes internal consistency of the inference--rule pipeline; uncertainty and acceptance
+diagnostics above are needed to assess how tightly fan shares are constrained in each week.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T2_1_consistency_by_season_ci.png}
+    \caption{Consistency by season under different combination rules (using inferred fan shares).}
+    \label{fig:task1_consistency_by_season}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T2_4_posterior_bar_top12_origin_style.png}
+    \caption{Example posterior fan vote shares with uncertainty bars (Top 12 shown).}
+    \label{fig:task1_posterior_example}
+\end{minipage}
+\end{figure}
+
+\textbf{Uncertainty of inferred fan votes.}
+Per couple-week, posterior SD $\sigma_{s,w,i}$ has median $0.016$ (IQR $[0.000,\,0.036]$), 90th percentile $0.056$, and maximum $0.346$.
+We summarize week-level uncertainty by
+\[
+\overline{\sigma}_{s,w}=\frac{1}{n_{s,w}}\sum_{i=1}^{n_{s,w}}\sigma_{s,w,i}
+\]
+(exported as \texttt{AvgVoteUncertainty}). In our run, $\overline{\sigma}_{s,w}$ ranges from $0.000$ to $0.253$
+(median $0.153$, IQR $[0.129,\,0.189]$), with the largest value at Season 13, Week 9.
+
+\textbf{Inference stability.}
+Among $231$ usable season-weeks, $228$ achieved exact ABC acceptance ($\ell_{s,w}=0$) and $3$ required the bottom-2 relaxation
+($\ell_{s,w}=1$); none required Phase 2 soft resampling.
+The acceptance rate $\rho_{s,w}$ has median $0.200$ (IQR $[0.133,\,0.333]$), with range $[0.001,\,1.000]$.
+
+\textbf{Example posterior and downstream signals.}
+Figure~\ref{fig:task1_consistency_by_season} summarizes season-level consistency under alternative rules
+(using inferred fan shares), and Figure~\ref{fig:task1_posterior_example} shows an illustrative posterior vote-share bar chart with uncertainty.
+
+For Task~2, we export two summary views based on the same inferred fan shares: the flip rate between \texttt{Rank} and \texttt{Percent}
+(Figure~\ref{fig:task1_flip_rate_rank_percent}) and the distribution of contestant-level survival-week shifts under \texttt{Percent}
+relative to \texttt{Rank} (Figure~\ref{fig:task1_benefit_distribution}).
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T2_2_flip_rate_rank_percent_diffcurve.png}
+    \caption{Flip rate between \texttt{Rank} and \texttt{Percent} by season (using inferred fan shares).}
+    \label{fig:task1_flip_rate_rank_percent}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task1/T2_3_benefit_kde_double.png}
+    \caption{Distribution of contestant-level benefit (Percent $-$ Rank) measured by survival-week shift $\Delta$.}
+    \label{fig:task1_benefit_distribution}
+\end{minipage}
+\end{figure}
+
+% ==========================================================
+% Task 2
+% ==========================================================
+\subsection{Modeling and Solving of Task 2: Voting-Rule Comparison and Who Benefits}
+% Task 2 figure paths (generated by the second model run)
+\graphicspath{{../main_model/results/figures_task2/}{../main_model/results/figures_task1/}}
+\subsubsection{Problem Analysis}
+Task 2 asks how outcomes change under different methods of combining judge scores and fan votes,
+and which contestants benefit or suffer under alternative rules.
+Using Task 1, we obtain posterior mean fan vote shares
+$\boldsymbol{\mu}_{s,w}=(\mu_{s,w,1},\dots,\mu_{s,w,n_{s,w}})$ for each season-week $(s,w)$.
+We can therefore perform \emph{counterfactual simulations} by applying different voting rules to the same judge-score vector
+$\mathbf{J}_{s,w}$ while holding fan shares fixed at $\boldsymbol{\mu}_{s,w}$.
+
+In particular, we focus on:
+(i) rule-level consistency with observed eliminations,
+(ii) disagreement between rules (flip events),
+(iii) contestant-level survival-week shifts ($\Delta$) measuring who benefits or suffers,
+and (iv) controversy cases where fan support and judge rankings appear to conflict.
+
+\subsubsection{Model Preparation}
+We consider three canonical voting rules implemented consistently across all seasons:
+\[
+\mathcal{R}=\{\texttt{Rank},\ \texttt{Percent},\ \texttt{Bottom2+JudgeSave}\}.
+\]
+Here, \texttt{Rank} aggregates ordinal ranks from judges and fans, \texttt{Percent} aggregates normalized score magnitudes,
+and \texttt{Bottom2+JudgeSave} introduces an additional judge intervention step that can override fan preference within the bottom-two set.
+Using Task~1, we plug in posterior mean fan shares $\boldsymbol{\mu}_{s,w}$ and evaluate
+\[
+\widehat{e}_{s,w}(\mathcal{R}) = g_{\mathcal{R}}\!\left(\mathbf{J}_{s,w},\boldsymbol{\mu}_{s,w}\right)
+\]
+as the counterfactual elimination outcome under rule $\mathcal{R}$.
+
+
+\subsubsection{Model Solution}
+
+Using the posterior mean fan vote shares from Task~1, we compute counterfactual eliminations under three rules:
+\texttt{Rank}, \texttt{Percent}, and \texttt{Bottom2+JudgeSave} (\texttt{Bottom2}). From these week-level outcomes
+$\widehat{e}_{s,w}(\mathcal{R})$, we summarize (i) match rates to historical eliminations, (ii) rule disagreement (flip events),
+and (iii) contestant-level survival-week shifts.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task2/H1_acceptance_heatmap_seaborn.png}
+    \caption{Task 2 diagnostic: ABC Phase-0 acceptance-rate heatmap (higher $\Rightarrow$ easier exact matching).}
+    \label{fig:task2_acceptance_heatmap}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{../main_model/results/figures_task2/H2_uncertainty_heatmap_seaborn.png}
+    \caption{Task 2 diagnostic: uncertainty heatmap for inferred fan shares (week-level average posterior SD).}
+    \label{fig:task2_uncertainty_heatmap}
+\end{minipage}
+\end{figure}
+
+The pipeline exports:
+{\renewcommand{\baselinestretch}{1.0}\selectfont
+\begin{itemize}
+    \item \texttt{method\_outcomes\_by\_week.xlsx}: $\widehat{e}_{s,w}(\mathcal{R})$ and $\mathrm{Match}^{(s,w)}_{\mathcal{R}}$ for each rule;
+    \item \texttt{method\_comparison\_summary.xlsx}: season-level and overall consistency and flip summaries;
+    \item \texttt{contestant\_benefit\_analysis.xlsx}: predicted elimination week $E_s(\mathcal{R},\text{CoupleID})$ and survival-week shift $\Delta E$ for each pair of rules;
+    \item \texttt{task2\_week\_consistency\_diff.xlsx} and \texttt{task2\_candidate\_consistency\_diff.xlsx}: detailed diagnostics including controversy cases and automatically detected sensitive cases.
+\end{itemize}
+}
+
+\begin{figure}[htbp]
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task2/C2_flip_rank_vs_percent_seaborn.png}
+        \caption{Flip behavior (Rank vs Percent).}
+        \label{fig:task2_flip_rank_vs_percent}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task2/E1_ecdf_percent_minus_rank_seaborn.png}
+        \caption{ECDF of $\Delta=E_s(\texttt{Percent})-E_s(\texttt{Rank})$.}
+        \label{fig:task2_survival_shift_ecdf}
+    \end{subfigure}
+    \caption{Task 2 rule-comparison summary (left to right): consistency by season under \texttt{Rank}/\texttt{Percent}/\texttt{Bottom2}; flip behavior between \texttt{Rank} and \texttt{Percent}; and the distribution of contestant-level survival-week shifts $\Delta$.}
+    \label{fig:task2_rule_summary_triptych}
+\end{figure}
+
+We also report two week-level diagnostics from the post-processing run: ABC Phase-0 acceptance rates
+(Figure~\ref{fig:task2_acceptance_heatmap}) and vote-share uncertainty (Figure~\ref{fig:task2_uncertainty_heatmap}).
+
+
+We summarize the main Task~2 results in Figure~\ref{fig:task2_rule_summary_triptych}: season-level match rates (panel a),
+Rank--Percent flip behavior (panel b), and the distribution of survival-week shifts (panel c).
+Overall, \texttt{Percent} is most consistent with historical eliminations, \texttt{Rank} is slightly lower, and \texttt{Bottom2}
+can be lower due to the judge-save override. In producer terms: \texttt{Percent} is the clearest ``fair aggregation'' default,
+while \texttt{Bottom2+JudgeSave} is better viewed as a deliberate \emph{show-format} choice that trades fairness for drama and judge authority.
+
+
+
+\begin{figure}[httb]
+    \centering
+    \includegraphics[width=0.65\linewidth]{../main_model/results/figures_task2/C1_consistency_by_season_seaborn.png}
+    \caption{Consistency by season.}
+    \label{fig:task2_consistency_by_season}
+\end{figure}
+
+We define a flip event by
+\[
+\mathrm{Flip}^{(s,w)}_{\texttt{Rank},\texttt{Percent}}
+=\mathbb{I}\!\left[\widehat{e}_{s,w}(\texttt{Rank})\neq \widehat{e}_{s,w}(\texttt{Percent})\right],
+\]
+and measure contestant-level impact via
+\[
+\Delta = E_s(\texttt{Percent}) - E_s(\texttt{Rank}).
+\]
+
+So $\Delta>0$ means the contestant survives longer under \texttt{Percent}.
+Figure~\ref{fig:task2_rule_summary_triptych}c (also Figure~\ref{fig:task2_survival_shift_ecdf}) shows the ECDF of $\Delta$;
+a distribution concentrated around $0$ indicates that, in aggregate, neither rule systematically advantages contestants,
+although individual contestants can still experience large positive or negative shifts.
+
+The prompt lists four high-profile controversy cases, which we evaluate to see whether changing the combination method
+(\texttt{Rank} vs \texttt{Percent}) would change the outcome, and how adding \texttt{Bottom2+JudgeSave} would impact results.
+Table~\ref{tab:given_controversy_cases} reports each contestant's predicted elimination week under each rule.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{llllll}
+\toprule
+Season & Celebrity & Rank & Percent & Bottom2 & Bottom2-Percent \\
+\midrule
+2  & Jerry Rice       & 12 & 12 & 7  & -5 \\
+4  & Billy Ray Cyrus  & 8  & 8  & 7  & -1 \\
+11 & Bristol Palin    & 12 & 12 & 8  & -4 \\
+27 & Bobby Bones      & 12 & 12 & 12 & 0 \\
+\bottomrule
+\end{tabular}
+\caption{Given controversy cases: predicted elimination week under different rules.}
+\label{tab:given_controversy_cases}
+\end{table}
+
+From Table~\ref{tab:given_controversy_cases} we conclude that switching between \texttt{Rank} and \texttt{Percent} does not change
+any of the four listed outcomes, while introducing \texttt{Bottom2+JudgeSave} eliminates three of the four contestants earlier
+(Jerry Rice: $-5$ weeks; Bristol Palin: $-4$ weeks; Billy Ray Cyrus: $-1$ week).
+Bobby Bones (Season 27) remains unchanged under all three rules, suggesting his fan advantage is strong enough that even a judge-save
+mechanism does not reverse the season-level trajectory.
+
+Beyond the hand-picked controversy cases, we identify contestants whose predicted elimination week changes most across rules.
+Table~\ref{tab:top5_weirdest} lists the top five automatically detected method-sensitive cases.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lllllll}
+\toprule
+Season & Celebrity & ProDancer & WeirdScore & Rank & Percent & Bottom2 \\
+\midrule
+3  & Shanna Moakler        & Jesse DeSoto           & 12.5 & 2  & 2  & 12 \\
+13 & Elisabetta Canalis    & Valentin Chmerkovskiy  & 12.5 & 2  & 2  & 12 \\
+1  & Kelly Monaco          & Alec Mazo              & 12.5 & 12 & 12 & 2  \\
+20 & Redfoo                & Emma Slater            & 12.5 & 2  & 2  & 12 \\
+1  & Trista Sutter         & Louis van Amstel       & 12.5 & 2  & 2  & 12 \\
+\bottomrule
+\end{tabular}
+\caption{Top 5 most method-sensitive contestants (automatically detected).}
+\label{tab:top5_weirdest}
+\end{table}
+
+These cases highlight that \texttt{Bottom2+JudgeSave} can produce dramatic outcome shifts even when \texttt{Rank} and \texttt{Percent} agree.
+Therefore, introducing the judge-save rule changes the decision structure qualitatively: it is not a minor tweak, but a mechanism
+that can override fan votes in the bottom-two weeks.
+
+To make disagreements concrete, Table~\ref{tab:flip_weeks_rank_percent} shows example weeks where \texttt{Rank} and \texttt{Percent}
+predict different eliminated couples.
+
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{cl>{\RaggedRight\arraybackslash}X
+                          >{\RaggedRight\arraybackslash}X
+                          >{\RaggedRight\arraybackslash}X}
+\toprule
+Season & Week & Actual Eliminated & Pred\_Rank & Pred\_Percent \\
+\midrule
+11 & 6 & Audrina Patridge\_Tony Dovolani
+      & Kyle Massey\_Lacey Schwimmer
+      & Audrina Patridge\_Tony Dovolani \\
+14 & 9 & Maria Menounos\_Derek Hough
+      & William Levy\_Cheryl Burke
+      & Maria Menounos\_Derek Hough \\
+15 & 6 & Sabrina Bryan\_Louis van Amstel
+      & Kelly Monaco\_Valentin Chmerkovskiy
+      & Sabrina Bryan\_Louis van Amstel \\
+17 & 5 & Christina Milian\_Mark Ballas
+      & Amber Riley\_Derek Hough
+      & Christina Milian\_Mark Ballas \\
+21 & 9 & Alexa PenaVega\_Mark Ballas
+      & Carlos PenaVega\_Witney Carson
+      & Alexa PenaVega\_Mark Ballas \\
+\bottomrule
+\end{tabularx}
+\caption{Example weeks where \texttt{Rank} and \texttt{Percent} predict different eliminations (first rows shown).}
+\label{tab:flip_weeks_rank_percent}
+\end{table}
+
+\textbf{Recommendation (producer-facing).}
+If the primary goal is \emph{fair and transparent aggregation} of judges and fans, we recommend \textbf{\texttt{Percent}}:
+it combines normalized magnitudes, preserves intensity of support, and is straightforward to communicate on-air.
+If the primary goal is \emph{live-show drama and judge authority}, then \textbf{\texttt{Bottom2+JudgeSave}} is a viable format choice,
+but it should be adopted explicitly as an entertainment mechanism: it can materially change outcomes by overriding fan votes in bottom-two
+weeks and may amplify perceived bias toward judges (Tables~\ref{tab:given_controversy_cases}--\ref{tab:top5_weirdest}).
+
+% ==========================================================
+% Task 3
+% ==========================================================
+\subsection{Modeling and Solving of Task 3: Explanatory Regression and Sensitivity}
+
+\subsubsection{Problem Analysis}
+Task 3 asks us to explain why certain contestants survive longer, receive higher judge scores,
+or obtain stronger fan support, and to assess whether these conclusions are robust to modeling choices.
+Using the dataset, we define three outcome targets that correspond directly to the three perspectives of the show:
+(i) \textbf{performance} measured by \texttt{WeeksSurvived},
+(ii) \textbf{judges} measured by \texttt{AvgJudgeTotal},
+and (iii) \textbf{fans} measured by \texttt{AvgFanShare}.
+We fit an explanatory regression model that quantifies the marginal effects of interpretable attributes
+while controlling model complexity through regularization.
+
+\subsubsection{Model Preparation}
+We construct a contestant-level modeling table by aggregating weekly information within each season.
+Each row represents one contestant-couple (identified by \texttt{CoupleID}) and includes:
+{\renewcommand{\baselinestretch}{1.0}\selectfont
+\begin{itemize}
+    \item Numeric: \texttt{Age};
+    \item Categorical: \texttt{Partner} (pro dancer), \texttt{Industry}, \texttt{HomeState}, \texttt{HomeCountry};
+    \item Targets: \texttt{WeeksSurvived}, \texttt{AvgJudgeTotal}, \texttt{AvgFanShare}.
+\end{itemize}
+}
+To ensure comparability across targets, we fit separate models for each target using the same feature set,
+dropping rows with missing values for the specific target being modeled.
+
+To avoid extremely high-dimensional one-hot encodings, each categorical variable is capped to its Top-$K$ most frequent categories
+and all remaining categories are grouped into an \texttt{Other} class. This makes the regression stable and interpretable.
+
+\subsubsection{Model Construction}
+Let $\boldsymbol{x}_i \in \mathbb{R}^d$ denote the one-hot encoded feature vector (plus standardized age) for contestant $i$,
+and let $y_i$ denote one of the three targets. We use a linear model with intercept:
+\[
+\hat{y}_i = \beta_0 + \boldsymbol{x}_i^\top \boldsymbol{\beta}.
+\]
+To control overfitting and stabilize coefficients under correlated categorical predictors, we apply ridge regression:
+\[
+(\hat{\beta}_0,\hat{\boldsymbol{\beta}})
+=\arg\min_{\beta_0,\boldsymbol{\beta}}
+\sum_{i=1}^{n}(y_i-\beta_0-\boldsymbol{x}_i^\top\boldsymbol{\beta})^2
++\lambda\|\boldsymbol{\beta}\|_2^2.
+\]
+Model selection is performed using $K$-fold cross-validation (default $K=5$).
+We sweep over $\lambda$ (ridge strength) and the Top-$K$ caps, selecting the configuration that maximizes predictive stability
+(tie-breaking by better cross-validated performance).
+
+To summarize feature importance in an interpretable way, we compute grouped effect magnitudes
+(absolute standardized coefficient summaries) for:
+\[
+\{\texttt{Age},\ \texttt{Partner},\ \texttt{Industry},\ \texttt{HomeState},\ \texttt{HomeCountry}\},
+\]
+and compare their impacts across the three targets.
+
+% --- BEGIN REPLACEMENT FOR TASK 3 MODEL SOLUTION ---
+
+
+\subsubsection{Model Solution}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{../main_model/results/figures_task3/T3_app_1_age_scatter_smooth.png}
+    \caption{Supplementary diagnostic: age vs. outcomes with a smooth trend line (Task 3).}
+    \label{fig:task3_age_scatter_smooth}
+\end{figure}
+
+The Task 3 pipeline generates both predictive and explanatory outputs. All modeling results are exported in
+\texttt{task3\_hyperparam\_sweep\_and\_effects.xlsx}, which contains the cleaned contestant-level modeling table and
+cross-validation sweep results over $(\lambda,\,K)$ settings.
+
+To summarize the findings in the main text, we report three core visual diagnostics:
+(i) a grouped impact heatmap across features and targets,
+(ii) a grouped-bar comparison of feature importance across targets,
+and (iii) the cross-validated $R^2$ sensitivity curve as the ridge penalty varies.
+
+We additionally visualize the marginal relationship between \texttt{Age} and the modeled outcomes using a scatter plot with a smooth trend line (Figure~\ref{fig:task3_age_scatter_smooth}).
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_app_2_partner_grouped_bar.png}
+        \caption{Partner (Top 12, count$\ge 3$).}
+        \label{fig:task3_desc_partner}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_app_3_industry_grouped_bar.png}
+        \caption{Industry (Top 12, count$\ge 3$).}
+        \label{fig:task3_desc_industry}
+    \end{subfigure}
+
+    \vspace{0.2em}
+
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_app_4_homestate_grouped_bar.png}
+        \caption{HomeState (Top 12, count$\ge 3$).}
+        \label{fig:task3_desc_homestate}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_app_5_homecountry_grouped_bar.png}
+        \caption{HomeCountry/Region (Top 12, count$\ge 3$).}
+        \label{fig:task3_desc_homecountry}
+    \end{subfigure}
+
+    \caption{Task 3 supplementary descriptive plots: mean outcomes by subgroup (Top 12 categories, count$\ge 3$). These provide an intuitive cross-check that aligns with the regression-based importance ordering.}
+    \label{fig:task3_descriptive_grouped_bars}
+\end{figure}
+\textbf{Supplementary descriptive breakdowns.}
+To complement the ridge coefficients with an intuitive sanity check, 
+we also report descriptive subgroup means (Top 12 categories, count$\ge 3$) for the main high-cardinality attributes. 
+Figure~\ref{fig:task3_descriptive_grouped_bars} shows that partner-level differences are the most pronounced (especially for judge outcomes), 
+while industry and geographic attributes exhibit smaller but visible separation, consistent with the grouped-impact results.
+
+
+
+% --- BEGIN REPLACEMENT FOR TASK 3 FIGURES ---
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_main_2_grouped_bar.png}
+        \caption{Feature-importance comparison across targets (grouped coefficient magnitudes).}
+        \label{fig:task3_grouped_bar}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_main_3_lambda_vs_cvr2.png}
+        \caption{Sensitivity of CV $R^2$ to $\lambda$.}
+        \label{fig:task3_lambda_vs_cvr2}
+    \end{minipage}
+\end{figure}
+\medskip
+
+
+Figures~\ref{fig:task3_impact_heatmap}--\ref{fig:task3_grouped_bar} highlight a clear separation between
+judge-driven and fan-driven outcomes. The grouped-impact heatmap (Figure~\ref{fig:task3_impact_heatmap}) indicates that
+\texttt{Partner} is the strongest explanatory factor for \texttt{AvgJudgeTotal}, and it remains influential for \texttt{AvgFanShare},
+consistent with the idea that professional dancer pairing affects both scoring and audience support.
+Meanwhile, \texttt{Industry} and regional attributes (\texttt{HomeState}, \texttt{HomeCountry}) show moderate but non-negligible signals,
+suggesting that fan engagement depends partly on contestant identity and background beyond judge performance.
+
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_bonus_3d_surface_lambda_targets.png}
+        \caption{CV surface over $\lambda$ across targets.}
+        \label{fig:task3_bonus_3d_surface_lambda_targets}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3/T3_main_1_impact_heatmap.png}
+        \caption{Grouped impact heatmap (|standardized coefficients|) across features and targets.}
+        \label{fig:task3_impact_heatmap}
+    \end{minipage}
+\end{figure}
+
+
+The ridge sweep in Figure~\ref{fig:task3_lambda_vs_cvr2} shows that predictive performance is relatively stable across a broad range of $\lambda$,
+which supports the robustness of the qualitative conclusions to regularization strength. For additional descriptive breakdowns by category level (Partner/Industry/HomeState/HomeCountry), we provide supplementary figures in the Appendix
+to avoid overloading the main narrative.
+
+
+
+
+% ==========================================================
+% Task 4
+% ==========================================================
+\subsection{Modeling and Solving of Task 4: FairVote Backtest, Tuning, and Robustness}
+\subsubsection{Problem Analysis}
+    Task 4 requires proposing and validating an improved voting mechanism that balances:
+    (i) agreement with historical eliminations (consistency),
+    (ii) entertainment value (measured by ``close-call'' triggers / gate rate),
+    and (iii) fan protection (how fan-preferred contestants are treated),
+    while also monitoring potential feature-driven bias (via a Bias Stability Index, BSI).
+
+\subsubsection{Model Preparation}
+    \textbf{Inputs from Tasks 1--2.} We use week-level judge scores and inferred fan shares from Task 1 as the baseline signals.
+    Task 2 provides a reference set of outcomes under existing rules.
+
+    \textbf{FairVote tunable parameters.} The backtest report indicates a two-parameter tuning surface:
+    {\renewcommand{\baselinestretch}{1.0}\selectfont
+    \begin{itemize}
+        \item $k$: an uncertainty penalty (controls how strongly vote uncertainty affects the rule),
+        \item $\tau$: a ``close-call'' gate threshold (controls when special handling is triggered).
+    \end{itemize}
+    }
+    The tuning sweep records metrics such as \texttt{Consistency}, \texttt{ExcitementRate},
+    and \texttt{DeltaFanShareElim(FV-Actual)}; optionally also \texttt{BSI\_FV\_sumAbsGamma} and \texttt{R2\_FV}.
+
+\subsubsection{Model Construction}
+    \textbf{Backtest objective metrics.} For each parameter pair $(k,\tau)$, the model generates week-level predictions $\widehat{E}_{\text{FV}}^{(s,w)}$
+    and computes:
+    \begin{align*}
+    \text{Consistency}(k,\tau)
+    &=\frac{1}{W}\sum_{(s,w)}\mathbb{I}\!\left[\widehat{E}_{\text{FV}}^{(s,w)} = e_{s,w}\right],\\
+    \text{ExcitementRate}(k,\tau)
+    &=\frac{1}{W}\sum_{(s,w)}\mathbb{I}\!\left[\text{Gate triggered in week }(s,w)\right],\\
+    \Delta\text{FanShareElim}(k,\tau)
+    &=\frac{1}{W}\sum_{(s,w)}\left(\mu_{s,w,\widehat{E}_{\text{FV}}^{(s,w)}}
+    -\mu_{s,w,e_{s,w}}\right),
+    \end{align*}
+    where negative $\Delta\text{FanShareElim}$ indicates that FairVote tends to eliminate contestants
+    with \emph{lower} fan share than the historical elimination (more fan-protective).
+
+    \textbf{Parameter selection.} We select $(k^\star,\tau^\star)$ as the best trade-off point from the sweep report,
+    using maximum Consistency as the primary objective and reporting the associated ExcitementRate and fan-protection metric.
+    (Implementation uses a best-parameter sheet \texttt{best\_params} in the report.)
+
+    \textbf{Robustness checks.} The sensitivity script further performs \cite{saltelli2002}:
+    {\renewcommand{\baselinestretch}{1.0}\selectfont
+    \begin{itemize}
+        \item \textbf{Surface visualization}: heatmaps over $(k,\tau)$ for Consistency / ExcitementRate / fan-protection,
+              with the selected best point marked;
+        \item \textbf{Bootstrap confidence intervals}: resampling across weeks to provide CIs for key metrics at $(k^\star,\tau^\star)$;
+        \item \textbf{LOSO stability (leave-one-season-out)}: verifying that the results are not driven by any single anomalous season.
+    \end{itemize}
+    }
+
+\subsubsection{Model Solution}
+We backtest \texttt{FairVote} over a $(k,\tau)$ grid and summarize performance and robustness.
+\medskip
+
+\textbf{Fairness definition (operational).}
+We define ``fairness'' as a multi-objective criterion evaluated from three complementary angles:
+(i) \emph{fan protection}, measured by the eliminated-couple fan-share shift
+$\Delta=\mu_{\text{elim}}^{\text{FV}}-\mu_{\text{elim}}^{\text{Actual}}$ (more protective $\Leftrightarrow$ smaller/negative $\Delta$);
+(ii) \emph{volatility control}, measured by the excitement (gate-trigger) rate to avoid excessive rule intervention;
+and (iii) \emph{bias control}, measured by the Bias Stability Index (BSI), where lower indicates weaker feature-driven bias.
+Thus, \texttt{FairVote} is a tunable policy knob: $(k,\tau)$ controls the trade-off among historical consistency, intervention frequency,
+fan protection, and bias stability.
+
+Full sweep outputs, the selected best parameters, week-level predictions, and season summaries are exported to
+\texttt{fairvote\_backtest\_report.xlsx}. Bootstrap CIs and leave-one-season-out (LOSO) stability checks are reported in
+\texttt{task4\_sensitivity\_report.xlsx} \\(figures in \texttt{results/figures\_task4\_sensitivity/}).
+\begin{table}[htbp]
+\centering
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Consistency (match rate)                & $\mathbf{0.355}\;[0.294,\;0.416]$ \\
+Excitement rate (gate)                  & $0.255$ \\
+Fan-favoring $\Delta$ mean (all)        & $0.114$ \\
+Fan-favoring $\Delta$ median (all)      & $0.105$ \\
+$\mathbb{P}(\Delta>0)$ (all)            & $0.645$ \\
+Fan-favoring $\Delta$ mean (gate-only)  & $0.125$ \\
+Gate weeks (count)                      & $59$ \\
+$\omega$ (mean / median)                & $0.350\;/\;0.350$ \\
+BSI (FairVote) $\sum|\gamma_k|$         & $3.842$ \\
+BSI baseline (Rank/Percent/Bottom2)     & $1.513\;/\;1.500\;/\;1.720$ \\
+Best params $(k,\tau)$                  & $2.000,\;0.200$ \\
+$\omega$ bounds $(\omega_{\min},\omega_{\max})$ & $0.350,\;0.650$ \\
+\bottomrule
+\end{tabular}
+\caption{FairVote backtest summary at the selected operating point. The match-rate consistency is reported with a 95\% bootstrap CI.}
+\label{tab:fairvote_backtest_summary}
+\end{table}
+
+Table~\ref{tab:fairvote_backtest_summary} reports the selected operating point $(k^\star,\tau^\star)=(2.0,\,0.2)$. At this setting, the match-rate consistency is $0.355$ with a 95\% bootstrap CI $[0.294,\,0.416]$, and the gate (\"close-call\") rate is $0.255$ (\,59 gate weeks), indicating moderate use of the special-handling mechanism.
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\linewidth]{../main_model/results/figures_task4/T4_app_1_consistency_ridge_mondrian.png}
+    \caption{Season-level consistency (match rate) comparison for \texttt{FairVote} versus baseline rules. Color indicates each method's average consistency.}
+    \label{fig:task4_consistency_by_season}
+\end{figure}
+
+To interpret the gate mechanism, Figure~\ref{fig:task4_gate_rate_by_season} shows the gate-trigger rate by season (with a rolling mean), and Figure~\ref{fig:task4_close_call_margin_hist} shows the close-call margin distribution $S_{(n-1),w}-S_{(n),w}$ with the threshold $\tau^\star=0.2$ marked.
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task4/T4_app_2_gate_rate_by_season.png}
+        \caption{Gate-trigger (excitement) rate by season with rolling mean.}
+        \label{fig:task4_gate_rate_by_season}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task4/T4_app_4_margin_hist.png}
+        \caption{Close-call margin distribution; dashed line indicates $\tau^\star=0.2$.}
+        \label{fig:task4_close_call_margin_hist}
+    \end{subfigure}
+    \caption{Task 4 diagnostics for the close-call mechanism: how often the gate is triggered across seasons and how the trigger threshold $\tau^\star$ relates to the empirical margin distribution.}
+    \label{fig:task4_gate_and_margin}
+\end{figure}
+
+Figure~\ref{fig:task4_consistency_by_season} compares season-level consistency for \texttt{FairVote} against the three baseline rules. \texttt{Rank} and \texttt{Percent} remain the most consistent overall; \texttt{Bottom2} is lower due to judge overrides. \texttt{FairVote} achieves moderate consistency with noticeable season-to-season variation, reflecting its trade-off between matching history and the gate/fan-protection objectives.
+
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.38\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task4/T4_main_1_fan_favoring_hexbin.png}
+        \caption{Week-level eliminated fan share: FairVote vs actual.}
+        \label{fig:task4_hexbin}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task4/T4_main_2_delta_fanshare_kde.png}
+        \caption{Distribution of $\Delta=\mu_{\text{elim}}^{\text{FV}}-\mu_{\text{elim}}^{\text{Actual}}$ (all weeks vs gate-only).}
+        \label{fig:task4_delta_kde}
+    \end{subfigure}
+    \caption{FairVote fan-protection diagnostics at $(k^\star,\tau^\star)$.}
+    \label{fig:task4_fan_protection}
+\end{figure}
+Fan protection is assessed by comparing the eliminated couple's fan share under FairVote to the historical elimination. Figure~\ref{fig:task4_fan_protection} shows week-level eliminated fan shares (hexbin) and the distribution of $\Delta=\mu_{\text{elim}}^{\text{FV}}-\mu_{\text{elim}}^{\text{Actual}}$ (density). At $(k^\star,\tau^\star)$, $\mathbb{P}(\Delta>0)=0.645$, so FairVote more often eliminates a higher-fan-share couple than the historical outcome; we therefore treat fan protection as a tunable trade-off controlled by $(k,\tau)$.
+
+Robustness results (metric surfaces, bootstrap CIs, and LOSO stability) are provided in \texttt{task4\_sensitivity\_report.xlsx}, indicating the chosen operating point is not driven by a single season.
+

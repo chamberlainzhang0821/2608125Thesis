@@ -1,0 +1,124 @@
+\section{Sensitivity Analysis}
+\subsection{Sensitivity Analysis of Task 1: Bayesian Fan-Vote Inference}
+
+We test robustness of the Stable-ABC fan-vote inference to two key hyperparameters: the Dirichlet prior concentration $\alpha$
+and the rejection-ABC budget \texttt{MAX\_DRAWS}. We track mean acceptance rate and mean fallback rate.
+
+Figure~\ref{fig:sens_alpha} shows that acceptance changes only mildly over $\alpha\in[0.1,1.0]$,
+while fallback quickly approaches $0$ once $\alpha\ge 0.3$, indicating stable inference under moderately informative priors.
+Figure~\ref{fig:sens_budget} suggests diminishing returns from increasing \texttt{MAX\_DRAWS}, since fallback remains near $0$
+and acceptance improves only marginally. Overall, Stable-ABC exhibits stable behavior under reasonable hyperparameter perturbations.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[b]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures/S1_sensitivity_alpha.png}
+        \caption{Sensitivity to Dirichlet prior concentration $\alpha$: mean acceptance rate and fallback rate.}
+        \label{fig:sens_alpha}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.49\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures/S2_sensitivity_budget.png}
+        \caption{Sensitivity to rejection-ABC budget \texttt{MAX\_DRAWS}: mean acceptance rate and fallback rate.}
+        \label{fig:sens_budget}
+    \end{minipage}
+\end{figure}
+
+
+\subsection{Sensitivity Analysis of Task 3: Explanatory Regression and Sensitivity}
+
+We assess robustness of the Task~3 ridge-regression explanations from three aspects:
+(i) seed stability under different cross-validation splits,
+(ii) bootstrap stability of grouped effect magnitudes,
+and (iii) sensitivity to ridge regularization strength $\lambda$.
+
+As shown in Figure~\ref{fig:t3_seed_stability_box}, the 5-fold CV $R^2$ distributions are stable across seeds,
+with\\ \texttt{Judges\_AvgJudgeTotal} consistently achieving the highest explainability, followed by\\
+\texttt{Performance\_WeeksSurvived}, while \texttt{Fans\_AvgFanShare} remains the most difficult target.
+Figure~\ref{fig:t3_beta_ci_dotplot} further confirms that the grouped-effect ranking is robust under bootstrapping:
+\texttt{Partner} is the dominant factor for judge outcomes and remains influential for fan share, while
+\texttt{Industry} and geographic features contribute weaker but nonzero signals.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3_sensitivity/T3S_1_seed_stability_box.png}
+        \caption{Seed stability of 5-fold CV $R^2$ across targets.}
+        \label{fig:t3_seed_stability_box}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3_sensitivity/T3S_3_beta_ci_dotplot.png}
+        \caption{Bootstrap 95\% CI of mean grouped effects.}
+        \label{fig:t3_beta_ci_dotplot}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{../main_model/results/figures_task3_sensitivity/T3S_4_lambda_curve.png}
+        \caption{CV $R^2$ sensitivity to ridge $\lambda$ (log scale).}
+        \label{fig:t3_lambda_curve}
+    \end{subfigure}
+\end{figure}
+
+Finally, Figure~\ref{fig:t3_lambda_curve} shows smooth and bounded changes of CV $R^2$ over a wide range of $\lambda$,
+indicating that conclusions are not driven by a fragile regularization choice. Overall, Task~3 results are robust to random-seed perturbations, resampling uncertainty, and ridge-penalty tuning.
+
+
+\subsection{Sensitivity Analysis of Task 4: FairVote Backtest, Tuning, and Robustness}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.55\linewidth]{../main_model/results/figures_task4_sensitivity/T4S_5_loso_stability_jitter_median.png}
+    \caption{LOSO stability of consistency across seasons.}
+    \label{fig:t4s_loso_stability}
+\end{figure}
+
+We evaluate robustness of \texttt{FairVote} over $(k,\tau)$ using five diagnostics.
+Figure~\ref{fig:t4s_surface_grid} summarizes four sensitivity surfaces ($R^2$, excitement rate, fan-impact, and BSI),
+and Figure~\ref{fig:t4s_loso_stability} reports leave-one-season-out (LOSO) stability. The surfaces are smooth with no sharp
+optima, suggesting moderate perturbations of $(k,\tau)$ do not qualitatively change conclusions.
+
+% Compact 2x2 grid: cap each panel height so it doesn't eat a full page.
+\begin{figure}[htbp]
+    \centering
+    \captionsetup{font=small}
+    \captionsetup[subfigure]{font=footnotesize,skip=1pt}
+
+    \begin{subfigure}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth,height=0.21\textheight,keepaspectratio]{../main_model/results/figures_task4_sensitivity/T4S_3c_r2_surface_heatmap.png}
+        \caption{$R^2$ over $(k,\tau)$.}
+        \label{fig:t4s_r2_surface}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth,height=0.21\textheight,keepaspectratio]{../main_model/results/figures_task4_sensitivity/T4S_2_excitement_surface_heatmap.png}
+        \caption{Excitement rate (gate frequency).}
+        \label{fig:t4s_excitement_surface}
+    \end{subfigure}
+
+    \vspace{0.0em}
+
+    \begin{subfigure}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth,height=0.21\textheight,keepaspectratio]{../main_model/results/figures_task4_sensitivity/T4S_3_fan_favoring_surface_heatmap.png}
+        \caption{Fan-impact: $\Delta$ fan share eliminated (FV $-$ Actual).}
+        \label{fig:t4s_fan_favoring_surface}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=\linewidth,height=0.21\textheight,keepaspectratio]{../main_model/results/figures_task4_sensitivity/T4S_3b_bsi_surface_heatmap.png}
+        \caption{BSI (lower $\Rightarrow$ less feature-driven bias).}
+        \label{fig:t4s_bsi_surface}
+    \end{subfigure}
+
+    \caption{Task 4 sensitivity surfaces over $(k,\tau)$: $R^2$, excitement rate, fan-impact, and BSI.}
+    \label{fig:t4s_surface_grid}
+\end{figure}
