@@ -80,8 +80,7 @@ If you reference this work, please cite:
 
 ## License
 
-This project is licensed under the **Apache License 2.0**.
-Copyright (c) 2026 Team #2608125.
+This project is licensed under the Apache License 2.0.
 
 ## Contact
 
@@ -94,7 +93,7 @@ For questions: open an issue or contact the repository owner. Alternatively, ema
 
 ## 2608125Thesis — MCM/ICM 2026 C题（队伍 #2608125）
 
-本仓库包含我们对 **MCM/ICM 2026 Problem C** 的完整解答材料：最终论文 PDF、（若提供）LaTeX 源文件、建模代码与结果导出表格/图像。
+本仓库包含我们对 **MCM/ICM 2026 Problem C** 的完整解答材料：最终论文 PDF、LaTeX 源文件、建模代码与结果导出表格/图像。
 
 ## 主要内容
 - **Task 1：** 用 ABC 的贝叶斯方法推断每周粉丝投票强度，并给出不确定性与“可辨识度”诊断  
@@ -164,12 +163,12 @@ python main_model/run_task4_fairvote_backtest_simpleomega.py
 ##引用方式
 
 如需引用本工作，可写：
-	•	Team #2608125, MCM/ICM 2026 Problem C Solution, 2026.
+
+Team #2608125, MCM/ICM 2026 Problem C Solution, 2026.
 
 许可证
 
-这篇论文使用**Apache License 2.0**版权
-Copyright (c) 2026 Team #2608125
+本项目采用 Apache License 2.0 开源许可证。
 
 联系方式
 
